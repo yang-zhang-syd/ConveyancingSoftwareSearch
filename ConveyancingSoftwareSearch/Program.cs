@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Specialized;
+using System.Net;
+using System.Web;
 
 namespace ConveyancingSoftwareSearch
 {
@@ -6,7 +9,17 @@ namespace ConveyancingSoftwareSearch
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            var keywordString = "conveyancing software";
+            var numOfResults = 100;
+            
+            var uriString = $"http://www.google.com/search?q={HttpUtility.UrlEncode(keywordString)}&num={numOfResults}";
+            
+            var request = WebRequest.CreateHttp(uriString);
+            var responseStream = request.GetResponse().GetResponseStream();
+
+
+
+            Console.Read();
         }
     }
 }
