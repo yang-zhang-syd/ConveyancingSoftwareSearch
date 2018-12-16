@@ -9,11 +9,14 @@ namespace ConveyancingSoftwareSearch
         public HtmlTag()
         {
             Children = new List<IHtmlElement>();
+            IsSelfClosed = false;
         }
 
         public string TagName { get; set; }
 
-        public HtmlAttribute Attribute { get; set; }
+        public bool IsSelfClosed { get; set; }
+
+        public HtmlAttribute Attributes { get; set; }
 
         public List<IHtmlElement> Children { get; set; }
     }

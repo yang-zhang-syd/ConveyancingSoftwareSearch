@@ -17,7 +17,8 @@ namespace ConveyancingSoftwareSearch
             var request = WebRequest.CreateHttp(uriString);
             var responseStream = request.GetResponse().GetResponseStream();
 
-
+            var parser = new SimpleHtmlParser();
+            var tag = parser.ParseHtml(responseStream);
 
             Console.Read();
         }

@@ -4,15 +4,15 @@ using System.Text;
 
 namespace ConveyancingSoftwareSearch
 {
-    public class ResultAndNextRead<T>
+    public class ResultAndReadText<T>
     {
-        public ResultAndNextRead(T t, int next)
+        public ResultAndReadText(T t, string readText)
         {
             Result = t;
-            NextRead = next;
+            ReadText = readText;
         }
 
         public T Result { get; set; }
-        public int NextRead { get; set; }
+        public string ReadText { get; set; }
     }
 }

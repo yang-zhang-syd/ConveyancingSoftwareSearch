@@ -9,6 +9,14 @@ namespace ConveyancingSoftwareSearch
 {
     public class SimpleHtmlParser
     {
+        private List<string> supportedTags = new List<string>
+        {
+            "html",
+            "body",
+            "main",
+            "div"
+        };
+
         /// <summary>
         /// Parse a stream from http response.
         /// </summary>
@@ -24,90 +32,190 @@ namespace ConveyancingSoftwareSearch
                 return null;
             }
 
-            if (firstChar == '<')
-            {
-                var result = readTagName(streamReader);
-                var tagName = result.Result;
-                if (tagName.StartsWith('!'))
-                {
-                    // This is a comment. Read to the end and return next char after the comment.
-                    firstChar = readComment(streamReader);
-                }
-            }
+            var tag = parseTag(streamReader, ((char)firstChar).ToString());
 
-            return null;
+            return tag.Result;
         }
 
-        private ResultAndNextRead<HtmlTag> parseTag(StreamReader sr, int? first = null)
+        /// <summary>
+        /// Parse a html tag.
+        /// </summary>
+        /// <param name="sr">Stream reader</param>
+        /// <param name="first">first char of the tag</param>
+        /// <returns>Tag element and the next non whitespace char.</returns>
+        private ResultAndReadText<HtmlTag> parseTag(StreamReader sr, string readText = null)
         {
-            if (first != null || first.Value != '<')
+            if (readText == null)
+            {
+                readText = sr.ReadNextNonWhiteSpace().ToString();
+            }
+
+            if (!readText.StartsWith("<"))
             {
                 throw new InvalidOperationException("Cannot parse a tag not starting with '<'");
             }
 
-            var result = readTagName(sr);
-            var tagName = result.Result;
-            var nextRead = result.NextRead;
-
-            if (tagName.StartsWith('!'))
+            var next = readText.Length >= 2 ? readText[1] : (char)sr.Peek();
+            if (next == '!')
             {
                 // If this is a comment, continue to parse next tag.
-                var next = readComment(sr);
-                if (next == '<')
+                readText = skipComment(sr);
+                if (readText.StartsWith('<'))
                 {
-                    return parseTag(sr, next);
+                    return parseTag(sr, readText);
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
+
+            var tagNameResult = readTagName(sr, readText);
+            var tagName = tagNameResult.Result;
+            readText = tagNameResult.ReadText;
+
+            // read attributes
+            var attributeResult = readAttributes(sr, readText);
+            readText = attributeResult.ReadText;
 
             var htmlTag = new HtmlTag();
             htmlTag.TagName = tagName;
+            htmlTag.Attributes = attributeResult.Result;
 
-            if (nextRead == '/')
+            if (readText.StartsWith("/"))
             {
                 // self closed tag
-                nextRead = sr.Read(); // this will be '>' otherwise incorrect
+                var nextRead = sr.ReadChar(); // this will be '>' otherwise incorrect
                 if (nextRead != '>')
                 {
                     throw new Exception("No '>' found after '/'.");
                 }
 
                 nextRead = sr.ReadNextNonWhiteSpace();
-                return new ResultAndNextRead<HtmlTag>(htmlTag, nextRead);
+                htmlTag.IsSelfClosed = true;
+                return new ResultAndReadText<HtmlTag>(htmlTag, nextRead.ToString());
             }
-            else if(nextRead == '>')
+
+            if (readText.StartsWith('>'))
             {
-                var next = sr.ReadNextNonWhiteSpace();
-                if (next == '<')
+                // find nesting tag
+                readText = sr.ReadNextNonWhiteSpace().ToString();
+            }
+
+            var tagsStack = new Stack<string>();
+            tagsStack.Push(tagName);
+
+            while (true)
+            {
+                if (readText.StartsWith('<'))
                 {
-                    // find a child html tag here
-                    var child = parseTag(sr, next);
-                    htmlTag.Children.Add(child.Result);
-                    nextRead = child.NextRead;
+                    var secondNext = sr.Peek();
+                    if (secondNext == '/')
+                    {
+                        // this is to close the html tag
+                        var closeTagResult = readClosingTag(sr);
+                        var closedTagName = closeTagResult.Result;
+                        readText = closeTagResult.ReadText;
+
+                        if (tagsStack.Peek() != closedTagName)
+                        {
+                            throw new Exception("Closed tag does not match top of tags stack!");
+                        }
+
+                        tagsStack.Pop();
+
+                        if (tagsStack.Count == 0)
+                        {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    var nextWord = sr.ReadWord();
+                    readText += nextWord;
+                    if (supportedTags.Contains(nextWord.ToLower()))
+                    {
+                        // find a child html tag here
+                        var child = parseTag(sr, readText);
+                        htmlTag.Children.Add(child.Result);
+                        readText = child.ReadText;
+                        if (!child.Result.IsSelfClosed)
+                        {
+                            tagsStack.Push(child.Result.TagName);
+                        }
+                    }
+                    else
+                    {
+                        // find an unsupported tag
+                        var child = parseUnsupportedTag(sr, readText, nextWord);
+                        htmlTag.Children.Add(child.Result);
+                        readText = child.ReadText;
+                    }
                 }
                 else
                 {
                     // find inner text here
-                    var innerTextResult = readInnerText(sr, next);
-                    var text = innerTextResult.Result;
-                    htmlTag.Children.Add(text);
-                    nextRead = innerTextResult.NextRead;
+                    var innerTextResult = readInnerText(sr, readText, tagName);
+                    var textElement = innerTextResult.Result;
+                    htmlTag.Children.Add(textElement);
+                    readText = innerTextResult.ReadText;
                 }
             }
-            else
-            {
-                // read attributes
-                var attributeResult = readAttribute(sr);
-                htmlTag.Attribute = attributeResult.Result;
-            }
-
-            return null;
+            
+            return new ResultAndReadText<HtmlTag>(htmlTag, readText);
         }
 
-        private int readComment(StreamReader sr)
+        private ResultAndReadText<UnsupportedHtmlTag> parseUnsupportedTag(StreamReader sr, string readText, string tagName)
+        {
+            var closingPattern = $"</{tagName}>";
+            var sb = new StringBuilder(readText);
+            var finished = false;
+
+            while (!finished)
+            {
+                var c = (char)sr.Read();
+                if (c == '<')
+                {
+                    var closingTagSb = new StringBuilder();
+                    closingTagSb.Append(c);
+                    
+                    while (true)
+                    {
+                        c = sr.ReadChar();
+                        closingTagSb.Append(c);
+                        var closeTagRead = closingTagSb.ToString();
+                        if (!closingPattern.StartsWith(closeTagRead))
+                        {
+                            sb.Append(closeTagRead);
+                            break;
+                        }
+
+                        if (closeTagRead == closingPattern)
+                        {
+                            sb.Append(closeTagRead);
+                            finished = true;
+                            break;
+                        }
+                    }
+                }
+                else if (c == '/' && sr.Peek() == '>')
+                {
+                    sb.Append(c);
+                    c = (char)sr.Read();
+                    sb.Append(c);
+                    finished = true;
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+
+            var tag = sb.ToString();
+            var nextCharString = sr.ReadNextNonWhiteSpace().ToString();
+            return new ResultAndReadText<UnsupportedHtmlTag>(new UnsupportedHtmlTag(tagName, tag), nextCharString);
+        }
+
+        private string skipComment(StreamReader sr)
         {
             int c;
             while ((c = sr.ReadNextNonWhiteSpace()) != '>')
@@ -116,47 +224,73 @@ namespace ConveyancingSoftwareSearch
             }
 
             var next = sr.ReadNextNonWhiteSpace();
-            return next;
+            return next.ToString();
         }
 
-        private ResultAndNextRead<string> readTagName(StreamReader sr)
+        private ResultAndReadText<string> readClosingTag(StreamReader sr)
         {
-            int c;
-            var sb = new StringBuilder();
+            var c = sr.ReadChar(); // '/'
+            var tagName = sr.ReadWord();
+            c = sr.ReadChar(); // '>'
+            c = sr.ReadNextNonWhiteSpace(); // next to process
+            return new ResultAndReadText<string>(tagName, c.ToString());
+        }
 
-            while ((c = sr.Read()) != ' ' && c != '>' && c != '/')
+        private ResultAndReadText<string> readTagName(StreamReader sr, string readText)
+        {
+            readText = readText.Replace("<", "");
+            int idx = readText.IndexOf(' ');
+            if (idx != -1)
             {
+                return new ResultAndReadText<string>(readText.Substring(0, idx + 1), readText.Substring(idx + 1));
+            }
+            
+            var newText = sr.ReadWord();
+            var nextCharString = sr.ReadNextNonWhiteSpace().ToString();
+            return new ResultAndReadText<string> (readText + newText, nextCharString);
+        }
+
+        private ResultAndReadText<HtmlAttribute> readAttributes(StreamReader sr, string readText)
+        {
+            int idx = readText.IndexOf('>');
+            if (idx != -1)
+            {
+                var attributeStr = readText.Substring(0, idx);
+                readText = readText.Substring(idx + 1);
+                if (string.IsNullOrEmpty(readText))
+                {
+                    readText = ((char)sr.Read()).ToString();
+                }
+                return new ResultAndReadText<HtmlAttribute>(new HtmlAttribute(attributeStr), readText);
+            }
+
+            char c;
+            var sb = new StringBuilder(readText);
+            var isInDoubleQuote = false;
+
+            while ((c = (char)sr.Peek()) != '>' && c != '/' || isInDoubleQuote)
+            {
+                c = (char) sr.Read();
+                isInDoubleQuote = c == '"' ? !isInDoubleQuote : isInDoubleQuote;
                 sb.Append(c);
             }
 
-            return new ResultAndNextRead<string> (sb.ToString(), c);
+            var nextCharString = sr.ReadNextNonWhiteSpace().ToString();
+            return new ResultAndReadText<HtmlAttribute> (new HtmlAttribute(sb.ToString()), nextCharString);
         }
 
-        private ResultAndNextRead<HtmlAttribute> readAttribute(StreamReader sr)
+        private ResultAndReadText<InnerText> readInnerText(StreamReader sr, string readText, string tagName)
         {
-            int c;
-            var sb = new StringBuilder();
+            char c;
+            var sb = new StringBuilder(readText);
 
-            while ((c = sr.Read()) != '>' && c != '/')
+            // TODO: this could not handle where text includes '<' as contents.
+            while ((c = sr.ReadChar()) != '<')
             {
-                sb.Append(c);
+                sb.Append((char)c);
             }
-
-            return new ResultAndNextRead<HtmlAttribute> (new HtmlAttribute(sb.ToString()), c);
-        }
-
-        private ResultAndNextRead<InnerText> readInnerText(StreamReader sr, int next)
-        {
-            int c;
-            var sb = new StringBuilder();
-            sb.Append(next);
-
-            while ((c = sr.Read()) != '>' && c != '/' && c != '<')
-            {
-                sb.Append(c);
-            }
-
-            return new ResultAndNextRead<InnerText>(new InnerText(sb.ToString()), c);
+            
+            return new ResultAndReadText<InnerText>(new InnerText(sb.ToString()), c.ToString());
         }
     }
 }
