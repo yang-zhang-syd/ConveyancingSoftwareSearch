@@ -34,7 +34,7 @@ namespace ConveyancingSoftwareSearch.Test
         }
 
         [Fact]
-        public void Test1()
+        public void Run_RetriveHtmlSuccessful_FindCorrectMatching()
         {
             var keywordString = "conveyancing software";
             var numOfResults = 100;
