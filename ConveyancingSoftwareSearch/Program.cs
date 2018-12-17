@@ -22,8 +22,10 @@ namespace ConveyancingSoftwareSearch
 
             var findSmokeBall = new FindSmokeBall(webRequestSender, parser);
             var resultIndicesContainingSmokeBallUrl = findSmokeBall.Run(url);
-
-            Console.WriteLine(string.Join(", ", resultIndicesContainingSmokeBallUrl));
+            var result = resultIndicesContainingSmokeBallUrl.Count > 0
+                ? string.Join(", ", resultIndicesContainingSmokeBallUrl)
+                : "0";
+            Console.WriteLine(result);
         }
     }
 }

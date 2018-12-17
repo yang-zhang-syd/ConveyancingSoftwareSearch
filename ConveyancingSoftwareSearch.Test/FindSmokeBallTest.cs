@@ -8,8 +8,8 @@ namespace ConveyancingSoftwareSearch.Test
 {
     public class FindSmokeBallTest
     {
-        private IWebRequestSender _webRequestSender;
-        private IHtmlParser _htmlParser;
+        private readonly IWebRequestSender _webRequestSender;
+        private readonly IHtmlParser _htmlParser;
 
         public FindSmokeBallTest()
         {
