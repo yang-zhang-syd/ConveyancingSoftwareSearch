@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.106
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConveyancingSoftwareSearch", "ConveyancingSoftwareSearch\ConveyancingSoftwareSearch.csproj", "{65FDD2AF-AB17-4AAD-9E0D-24E1329BC874}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConveyancingSoftwareSearch", "ConveyancingSoftwareSearch\ConveyancingSoftwareSearch.csproj", "{65FDD2AF-AB17-4AAD-9E0D-24E1329BC874}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConveyancingSoftwareSearch.Test", "ConveyancingSoftwareSearch.Test\ConveyancingSoftwareSearch.Test.csproj", "{4B13C0A7-C53C-4E02-AE50-556B1D9E702C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{65FDD2AF-AB17-4AAD-9E0D-24E1329BC874}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65FDD2AF-AB17-4AAD-9E0D-24E1329BC874}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{65FDD2AF-AB17-4AAD-9E0D-24E1329BC874}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B13C0A7-C53C-4E02-AE50-556B1D9E702C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B13C0A7-C53C-4E02-AE50-556B1D9E702C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B13C0A7-C53C-4E02-AE50-556B1D9E702C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B13C0A7-C53C-4E02-AE50-556B1D9E702C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
