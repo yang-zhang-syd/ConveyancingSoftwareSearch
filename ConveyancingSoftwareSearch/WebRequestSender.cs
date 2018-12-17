@@ -3,11 +3,6 @@ using System.Net;
 
 namespace ConveyancingSoftwareSearch
 {
-    public interface IWebRequestSender
-    {
-        string Get(string url);
-    }
-
     public class WebRequestSender : IWebRequestSender
     {
         public string Get(string url)

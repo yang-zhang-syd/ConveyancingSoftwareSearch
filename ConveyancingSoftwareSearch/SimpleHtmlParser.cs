@@ -6,17 +6,11 @@ using System.Text.RegularExpressions;
 
 namespace ConveyancingSoftwareSearch
 {
-    public interface IHtmlParser
-    {
-        List<int> GetMatchIndices(Regex regex);
-        string ReadDivAtIndex(int index);
-    }
-
     public class SimpleHtmlParser : IHtmlParser
     {
-        private readonly string _html;
+        private string _html;
 
-        public SimpleHtmlParser(string html)
+        public void SetHtml(string html)
         {
             _html = html;
         }

@@ -17,28 +17,12 @@ namespace ConveyancingSoftwareSearch
             var numOfResults = 100;
 
             var url = GoogleSearchUrlBuilder.Build(keywordString, numOfResults);
-            
             IWebRequestSender webRequestSender = new WebRequestSender();
-            var html = webRequestSender.Get(url);
+            IHtmlParser parser = new SimpleHtmlParser();
 
-            var parser = new SimpleHtmlParser(html);
+            var findSmokeBall = new FindSmokeBall(webRequestSender, parser);
+            var resultIndicesContainingSmokeBallUrl = findSmokeBall.Run(url);
 
-            var matchIndices = parser.GetMatchIndices(new Regex("<div class=\"g\">"));
-            var resultIndicesContainingSmokeBallUrl = new List<int>();
-
-            for (int i = 0; i < matchIndices.Count; ++i)
-            {
-                var div = parser.ReadDivAtIndex(matchIndices[i]);
-
-                var smokeBallUrlRegex = new Regex(@"www\.smokeball\.com\.au");
-                var urlMatches = smokeBallUrlRegex.Matches(div);
-
-                if (urlMatches.Count > 0)
-                {
-                    resultIndicesContainingSmokeBallUrl.Add(i + 1);
-                }
-            }
-            
             Console.WriteLine(string.Join(", ", resultIndicesContainingSmokeBallUrl));
         }
     }
