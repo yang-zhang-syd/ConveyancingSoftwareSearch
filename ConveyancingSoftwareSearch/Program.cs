@@ -15,51 +15,31 @@ namespace ConveyancingSoftwareSearch
         {
             var keywordString = "conveyancing software";
             var numOfResults = 100;
+
+            var url = GoogleSearchUrlBuilder.Build(keywordString, numOfResults);
             
-            var uriString = $"http://www.google.com/search?q={HttpUtility.UrlEncode(keywordString)}&num={numOfResults}";
+            IWebRequestSender webRequestSender = new WebRequestSender();
+            var html = webRequestSender.Get(url);
+
+            var parser = new SimpleHtmlParser(html);
+
+            var matchIndices = parser.GetMatchIndices(new Regex("<div class=\"g\">"));
+            var resultIndicesContainingSmokeBallUrl = new List<int>();
+
+            for (int i = 0; i < matchIndices.Count; ++i)
+            {
+                var div = parser.ReadDivAtIndex(matchIndices[i]);
+
+                var smokeBallUrlRegex = new Regex(@"www\.smokeball\.com\.au");
+                var urlMatches = smokeBallUrlRegex.Matches(div);
+
+                if (urlMatches.Count > 0)
+                {
+                    resultIndicesContainingSmokeBallUrl.Add(i + 1);
+                }
+            }
             
-            var request = WebRequest.CreateHttp(uriString);
-            var responseStream = request.GetResponse().GetResponseStream();
-
-            var sr = new StreamReader(responseStream);
-            var response = sr.ReadToEnd();
-
-            var regex = new Regex("<div class=\"g\">");
-            var matches = regex.Matches(response);
-            var resultsBeginIndexes = matches
-                .Select(m => m.Index)
-                .OrderBy(i => i)
-                .ToList();
-
-            //foreach (var idx in resultsBeginIndexes)
-            //{
-            //    Console.WriteLine(response.Substring());
-            //}
-
-            regex = new Regex(@"www\.smokeball\.com\.au");
-            matches = regex.Matches(response);
-            var smokeballBeginIndexes = matches
-                .Select(m => m.Index)
-                .OrderBy(i => i)
-                .ToList();
-
-
-            foreach (var idx in smokeballBeginIndexes)
-            {
-                Console.WriteLine(response.Substring(idx, 100));
-            }
-
-            var resultsIndexes = new List<int>();
-            foreach (var sidx in smokeballBeginIndexes)
-            {
-                var resultBeginAt = resultsBeginIndexes.First(i => i > sidx);
-                var resultIndex = resultsBeginIndexes.IndexOf(resultBeginAt);
-                resultsIndexes.Add(resultIndex);
-            }
-
-            resultsIndexes = resultsIndexes.Distinct().OrderBy(i => i).ToList();
-
-            Console.WriteLine(string.Join(',', resultsIndexes));
+            Console.WriteLine(string.Join(", ", resultIndicesContainingSmokeBallUrl));
         }
     }
 }
